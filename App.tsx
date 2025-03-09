@@ -1,31 +1,19 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
 import {NavigationContainer} from '@react-navigation/native';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import React from 'react';
-import HomeScreen from './src/screens/HomeScreen';
+import {Provider as PaperProvider} from 'react-native-paper';
+import {Provider as ReduxProvider} from 'react-redux';
+import {store} from './src/store/store';
+import {Nav} from './src/screens/Nav';
 
-const Stack = createNativeStackNavigator();
-
-function RootStack() {
+const App = () => {
   return (
-    <Stack.Navigator>
-      <Stack.Screen name="Home" component={HomeScreen} />
-    </Stack.Navigator>
+    <ReduxProvider store={store}>
+      <PaperProvider>
+        <NavigationContainer>
+          <Nav />
+        </NavigationContainer>
+      </PaperProvider>
+    </ReduxProvider>
   );
-}
-
-function App(): React.JSX.Element {
-  return (
-    <NavigationContainer>
-      <RootStack />
-    </NavigationContainer>
-  );
-}
+};
 
 export default App;
