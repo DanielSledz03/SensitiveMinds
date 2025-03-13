@@ -78,9 +78,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.sensitiveminds"
+    namespace "com.danielsledz.sensitiveminds"
     defaultConfig {
-        applicationId "com.sensitiveminds"
+        applicationId "com.danielsledz.sensitiveminds"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -93,6 +93,15 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        
+        release {
+                storeFile file(project.rootProject.file("app/my-release-key.keystore"))
+                storePassword project.hasProperty('MYAPP_RELEASE_STORE_PASSWORD') ? MYAPP_RELEASE_STORE_PASSWORD : ""
+                keyAlias project.hasProperty('MYAPP_RELEASE_KEY_ALIAS') ? MYAPP_RELEASE_KEY_ALIAS : ""
+                keyPassword project.hasProperty('MYAPP_RELEASE_KEY_PASSWORD') ? MYAPP_RELEASE_KEY_PASSWORD : ""
+        }
+
+
     }
     buildTypes {
         debug {
@@ -101,7 +110,7 @@ android {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

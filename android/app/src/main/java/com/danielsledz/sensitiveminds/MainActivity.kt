@@ -1,4 +1,4 @@
-package com.sensitiveminds
+package com.danielsledz.sensitiveminds
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

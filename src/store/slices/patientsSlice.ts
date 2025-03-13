@@ -7,6 +7,7 @@ export interface Patient {
   bedNumber: string;
   gender: 'Mężczyzna' | 'Kobieta';
   weight: number;
+  user?: {id: string};
 }
 
 interface PatientsState {

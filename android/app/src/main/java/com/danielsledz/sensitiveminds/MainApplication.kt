@@ -1,4 +1,4 @@
-package com.sensitiveminds
+package com.danielsledz.sensitiveminds
 
 import android.app.Application
 import com.facebook.react.PackageList
