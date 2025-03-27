@@ -1,10 +1,18 @@
 import React from 'react';
 import {View, StyleSheet} from 'react-native';
-import {Card, Text, Divider, Button} from 'react-native-paper';
+import {
+  Card,
+  Text,
+  Divider,
+  Button,
+  PaperProvider,
+  ActivityIndicator,
+} from 'react-native-paper';
 import {RouteProp, useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {RootStackParamList} from './Nav';
 import {useFetch} from '../utils/MyApi';
+import {SafeAreaView} from 'react-native-safe-area-context';
 
 type ParamList = {
   VisitDetails: {visitId: string};
@@ -35,12 +43,21 @@ const VisitDetailsScreen: React.FC = () => {
     error,
   } = useFetch<Visit>(`/visits/${route.params.visitId}`);
 
-  // Obsługa stanu ładowania
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <Text>Ładowanie wizyty...</Text>
-      </View>
+      <PaperProvider>
+        <SafeAreaView
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+          <ActivityIndicator animating size="large" />
+          <Text style={{marginTop: 16, color: 'black'}}>
+            Ładowanie danych wizyty...
+          </Text>
+        </SafeAreaView>
+      </PaperProvider>
     );
   }
 

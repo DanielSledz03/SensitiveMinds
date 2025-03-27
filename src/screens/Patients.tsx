@@ -1,149 +1,188 @@
-import React, {useCallback, useEffect, useState} from 'react';
-import {View, FlatList, StyleSheet} from 'react-native';
-import {Searchbar, Card, Avatar, FAB, List} from 'react-native-paper';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import {View, FlatList, StyleSheet, RefreshControl} from 'react-native';
+import {
+  Searchbar,
+  Card,
+  Avatar,
+  FAB,
+  List,
+  PaperProvider,
+  ActivityIndicator,
+} from 'react-native-paper';
+import {Text} from '@rneui/base';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+
 import {useDispatch, useSelector} from 'react-redux';
 import {RootState} from '../store/store';
 import {addPatient, Patient} from '../store/slices/patientsSlice';
 import {useFetch} from '../utils/MyApi';
-import {Text} from '@rneui/base';
 import {RootStackParamList} from './Nav';
-
-// Komponent wyświetlający awatar
-const PatientAvatar = (props: any, gender: string, initial: string) => (
-  <Avatar.Text
-    {...props}
-    label={initial}
-    style={{
-      backgroundColor: gender === 'Kobieta' ? '#E91E63' : '#2196F3',
-    }}
-  />
-);
-
-// Nowy komponent do pobierania i wyświetlania pełnej nazwy użytkownika
-const UserFullName: React.FC<{userId: string}> = ({userId}) => {
-  const {data, loading, error} = useFetch<any>(`/user/${userId}`);
-
-  if (loading) return <Text>Ładowanie...</Text>;
-  if (error) return <Text>Błąd</Text>;
-
-  return <Text>{data?.fullName || userId}</Text>;
-};
+import {SafeAreaView} from 'react-native-safe-area-context';
 
 const Patients: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const patients = useSelector((state: RootState) => state.patients.patients);
-  const {data, error, refetch} = useFetch<any[]>('/patients');
+  const [firstFetch, setFirstFetch] = useState(false);
+  // Pobieranie pacjentów z API
+  const {data, error, refetch, loading} = useFetch<any[]>('/patients');
   const dispatch = useDispatch();
+
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
+  // Odświeżenie danych po powrocie na ten ekran
   useFocusEffect(
     useCallback(() => {
       refetch();
     }, [refetch]),
   );
 
+  // Aktualizacja stanu w Redux po pobraniu pacjentów
   useEffect(() => {
     if (data) {
       const existingPatients = new Map(patients.map(p => [p.id, p]));
       const newPatients = data.filter(
         patient => !existingPatients.has(patient.id),
       );
-      newPatients.forEach(patient => {
-        dispatch(addPatient(patient));
-      });
+      newPatients.forEach(patient => dispatch(addPatient(patient)));
+      setFirstFetch(true);
     }
   }, [data, dispatch, patients]);
 
   // Filtrowanie pacjentów po wpisanej frazie
-  const filteredPatients =
-    searchQuery.trim() === ''
-      ? patients
-      : patients.filter(patient =>
-          patient.name.toLowerCase().includes(searchQuery.toLowerCase()),
-        );
-
-  // Sprawdzamy, czy którykolwiek pacjent posiada pole user.id
-  const isManager = filteredPatients.some(patient => patient.user?.id);
-
-  // Renderowanie listy płaskiej
-  const renderFlatList = () => (
-    <FlatList
-      data={filteredPatients}
-      keyExtractor={(item, index) => `${item.id}-${index}`}
-      renderItem={({item}: {item: Patient}) => (
-        <Card
-          elevation={0}
-          style={styles.card}
-          onPress={() =>
-            navigation.navigate('PatientDetails', {patientId: item.id})
-          }>
-          <Card.Title
-            title={item.name}
-            subtitle={`Wiek: ${item.age} | Łóżko: ${item.bedNumber}`}
-            titleStyle={{color: 'black'}}
-            subtitleStyle={{color: 'black'}}
-            left={props =>
-              PatientAvatar(props, item.gender, item.name.charAt(0))
-            }
-          />
-        </Card>
-      )}
-    />
-  );
-
-  // Renderowanie zagnieżdżonej listy dla managera
-  const renderNestedList = () => {
-    // Grupowanie pacjentów według user.id (jeśli brak - 'Brak użytkownika')
-    const groupedPatients = filteredPatients.reduce(
-      (groups: Record<string, Patient[]>, patient: Patient) => {
-        const userId = patient.user?.id ?? 'Brak użytkownika';
-        if (!groups[userId]) {
-          groups[userId] = [];
-        }
-        groups[userId].push(patient);
-        return groups;
-      },
-      {},
+  const filteredPatients = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return patients;
+    }
+    return patients.filter(patient =>
+      (patient.name || '').toLowerCase().includes(searchQuery.toLowerCase()),
     );
+  }, [patients, searchQuery]);
 
-    const groupKeys = Object.keys(groupedPatients);
+  const groupedPatients = useMemo(() => {
+    const grouped: Record<string, Patient[]> = {};
 
+    filteredPatients.forEach(patient => {
+      const centerId = patient.center?.id || 'unknown-center';
+      if (!grouped[centerId]) {
+        grouped[centerId] = [];
+      }
+      grouped[centerId].push(patient);
+    });
+
+    // Sortowanie pacjentów w każdej grupie
+    Object.keys(grouped).forEach(centerId => {
+      grouped[centerId].sort((a, b) => {
+        const nameA = a.name?.trim().toLowerCase();
+        const nameB = b.name?.trim().toLowerCase();
+
+        const isAnonA = !nameA;
+        const isAnonB = !nameB;
+
+        if (isAnonA && !isAnonB) return 1;
+        if (!isAnonA && isAnonB) return -1;
+        if (isAnonA && isAnonB) return 0;
+
+        return nameA!.localeCompare(nameB!);
+      });
+    });
+
+    return grouped;
+  }, [filteredPatients]);
+
+  // Wyciągnięcie listy kluczy (ID ośrodków) do wyświetlenia w FlatList
+  const centerIds = Object.keys(groupedPatients);
+
+  // Render listy ośrodków wraz z pacjentami
+  const renderCentersWithPatients = () => {
     return (
       <FlatList
-        data={groupKeys}
+        data={centerIds}
         keyExtractor={item => item}
-        renderItem={({item: userId}) => (
-          <List.Accordion
-            // Używamy komponentu UserFullName do pobrania i wyświetlenia pełnej nazwy użytkownika
-            title={
-              userId !== 'Brak użytkownika' ? (
-                <UserFullName userId={userId} />
-              ) : (
-                'Brak użytkownika'
-              )
-            }
-            style={styles.accordion}>
-            {groupedPatients[userId].map((patient: Patient) => (
-              <List.Item
-                key={patient.id}
-                title={patient.name}
-                description={`Wiek: ${patient.age} | Łóżko: ${patient.bedNumber}`}
-                onPress={() =>
-                  navigation.navigate('PatientDetails', {patientId: patient.id})
-                }
-                left={props =>
-                  PatientAvatar(props, patient.gender, patient.name.charAt(0))
-                }
-              />
-            ))}
-          </List.Accordion>
-        )}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={refetch} />
+        }
+        renderItem={({item: centerId}) => {
+          const centerName =
+            groupedPatients[centerId][0]?.center?.name || 'Nieznany ośrodek';
+
+          return (
+            <>
+              <List.Accordion
+                title={centerName}
+                rippleColor={'white'}
+                titleStyle={{color: 'black'}}
+                style={styles.accordion}>
+                {groupedPatients[centerId].map((patient: Patient, index) => {
+                  // Obsługa braku imienia
+                  const displayName = patient.name?.trim()
+                    ? patient.name
+                    : 'Pacjent anonimowy';
+                  // Obsługa wyświetlania wieku (jeżeli istnieje)
+
+                  // Podtytuł z uwzględnieniem pokoju, łóżka i ewentualnego wieku
+                  const subtitleText = `Pokój: ${patient.roomNumber} | Łóżko: ${patient.bedNumber}`;
+
+                  // Początkowa litera do Avatara
+                  const initial = patient.name?.charAt(0).toUpperCase() || '?';
+
+                  return (
+                    <Card
+                      key={patient.id}
+                      elevation={0}
+                      style={{...styles.card, marginTop: index === 0 ? 10 : 0}}
+                      onPress={() =>
+                        navigation.navigate('PatientDetails', {
+                          patientId: patient.id,
+                        })
+                      }>
+                      <Card.Title
+                        title={displayName}
+                        subtitle={subtitleText}
+                        titleStyle={{color: 'black'}}
+                        subtitleStyle={{color: 'black'}}
+                        left={props => (
+                          <Avatar.Text
+                            {...props}
+                            label={initial}
+                            style={{
+                              backgroundColor:
+                                patient.gender === 'Kobieta'
+                                  ? '#E91E63'
+                                  : '#2196F3',
+                            }}
+                          />
+                        )}
+                      />
+                    </Card>
+                  );
+                })}
+              </List.Accordion>
+              <View style={{height: 10}} />
+            </>
+          );
+        }}
+        ListEmptyComponent={<Text>Brak pacjentów</Text>}
       />
     );
   };
+
+  if (loading && !firstFetch) {
+    return (
+      <PaperProvider>
+        <SafeAreaView
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+          <ActivityIndicator animating size="large" />
+          <Text style={{marginTop: 16}}>Ładowanie pacjentów...</Text>
+        </SafeAreaView>
+      </PaperProvider>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -156,8 +195,11 @@ const Patients: React.FC = () => {
         rippleColor="black"
         selectionColor="black"
       />
-      {error && <Text>Błąd: {error}</Text>}
-      {isManager ? renderNestedList() : renderFlatList()}
+
+      {error && <Text style={{marginVertical: 8}}>Błąd: {error}</Text>}
+
+      {renderCentersWithPatients()}
+
       <FAB
         style={styles.fab}
         icon="plus"
@@ -167,6 +209,8 @@ const Patients: React.FC = () => {
     </View>
   );
 };
+
+export default Patients;
 
 const styles = StyleSheet.create({
   container: {
@@ -179,15 +223,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     color: 'black',
   },
+  accordion: {
+    backgroundColor: 'white',
+    color: 'black',
+    elevation: 0,
+    borderWidth: 0,
+  },
   card: {
     marginBottom: 10,
     backgroundColor: 'white',
     borderColor: 'white',
     elevation: 0,
-  },
-  accordion: {
-    backgroundColor: 'white',
-    marginBottom: 10,
+    borderWidth: 0,
   },
   fab: {
     position: 'absolute',
@@ -195,5 +242,3 @@ const styles = StyleSheet.create({
     bottom: 40,
   },
 });
-
-export default Patients;

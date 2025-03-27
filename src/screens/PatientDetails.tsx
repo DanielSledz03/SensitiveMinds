@@ -1,6 +1,15 @@
-import React, {useCallback} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {View, FlatList, StyleSheet} from 'react-native';
-import {Card, Avatar, Button, Text, Divider, FAB} from 'react-native-paper';
+import {
+  Card,
+  Avatar,
+  Button,
+  Text,
+  Divider,
+  FAB,
+  PaperProvider,
+  ActivityIndicator,
+} from 'react-native-paper';
 import {
   useFocusEffect,
   useNavigation,
@@ -11,6 +20,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {PatientDetailsRouteProp} from '../types/navigation';
 import {RootStackParamList} from './Nav';
 import {useFetch} from '../utils/MyApi';
+import {SafeAreaView} from 'react-native-safe-area-context';
 
 // importujemy nasz hook
 
@@ -23,17 +33,20 @@ interface Visit {
     arithmetic: {completed: boolean; time: number};
     reading: boolean;
   };
+  createdBy: {
+    fullName?: string;
+  };
 }
 
 interface Patient {
   id: string;
   name: string;
   age: number;
-  weight: number;
+  roomNumber: number;
   gender: string;
   bedNumber: string;
-  // ... i cokolwiek jeszcze zwraca API
-  visits: Visit[]; // jeśli w endpoincie /patients/:id zwracane są wizyty
+  center: string;
+  visits: Visit[];
 }
 
 const PatientAvatar = (props: any, initial: string, gender: string) => (
@@ -51,12 +64,13 @@ const PatientDetailsScreen: React.FC = () => {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<PatientDetailsRouteProp>();
   const patientId = route.params.patientId;
+  const [firstFetch, setFirstFetch] = useState(false);
 
   // używamy hooka - pobieramy dane pacjenta z API
   // (dla uproszczenia załóżmy, że w tym samym responsie dostajemy wizyty w polu visits)
   const {
     data: patient,
-
+    loading,
     error,
     refetch,
   } = useFetch<Patient>(`/patients/${patientId}`);
@@ -67,11 +81,89 @@ const PatientDetailsScreen: React.FC = () => {
     }, [refetch]),
   );
 
-  // Jeżeli w API nie ma wizyt w tym samym responsie i masz osobny endpoint,
-  // możesz użyć drugiego wywołania useFetch<Visit[]>(`/patients/${patientId}/visits`)
-  // i w analogiczny sposób przekazać je do listy.
+  useEffect(() => {
+    if (patient) {
+      setFirstFetch(true);
+    }
+  }, [patient]);
 
-  // Obsługa błędu i/lub stanu ładowania
+  const handleNavigateToEditPatient = () => {
+    if (patient?.id) {
+      navigation.navigate('EditPatient', {id: patient.id});
+    }
+  };
+
+  const renderVisitItem = ({item}: {item: Visit}) => (
+    <Card style={styles.card}>
+      {/* Przykład: onPress w Card nadal przenosi do szczegółów */}
+      <View>
+        <Card.Title
+          title={`Wizyta: ${new Date(item.date).toLocaleDateString('pl-PL')}`}
+          subtitle={'Badacz: ' + item?.createdBy?.fullName}
+          subtitleStyle={{color: 'black', fontWeight: 'bold'}}
+          titleStyle={{color: 'black'}}
+        />
+        <Card.Content>
+          <Text style={{color: 'black', marginBottom: 10}}>
+            🧠 Powrót do przeszłości:{' '}
+            {item.exercises.pastMemory ? 'Tak' : 'Nie'}
+          </Text>
+          <Text style={{color: 'black', marginBottom: 10}}>
+            🔢 Arytmetyka:{' '}
+            {item.exercises.arithmetic.completed
+              ? `Tak (${item.exercises.arithmetic.time} s)`
+              : 'Nie'}
+          </Text>
+          <Text style={{color: 'black', marginBottom: 10}}>
+            📖 Czytanie na głos: {item.exercises.reading ? 'Tak' : 'Nie'}
+          </Text>
+        </Card.Content>
+      </View>
+
+      {/* Dodajemy Actions z przyciskiem Edytuj */}
+      <Card.Actions>
+        <Button
+          mode="text"
+          onPress={() =>
+            navigation.navigate('EditVisit', {
+              visitId: item.id,
+              patientId: patientId,
+            })
+          }>
+          Edytuj
+        </Button>
+
+        <Button
+          mode="text"
+          onPress={() =>
+            navigation.navigate('VisitDetails', {
+              visitId: item.id,
+              patientId: patientId,
+            })
+          }>
+          Czytaj
+        </Button>
+      </Card.Actions>
+    </Card>
+  );
+
+  if (loading && !firstFetch) {
+    return (
+      <PaperProvider>
+        <SafeAreaView
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+          <ActivityIndicator animating size="large" />
+          <Text style={{marginTop: 16, color: 'black'}}>
+            Ładowanie danych pacjenta...
+          </Text>
+        </SafeAreaView>
+      </PaperProvider>
+    );
+  }
 
   if (error || !patient) {
     return (
@@ -81,56 +173,26 @@ const PatientDetailsScreen: React.FC = () => {
     );
   }
 
-  const handleNavigateToEditPatient = () => {
-    navigation.navigate('EditPatient', {id: patient.id});
-  };
-
-  const renderVisitItem = ({item}: {item: Visit}) => (
-    <Card
-      style={styles.card}
-      onPress={() =>
-        navigation.navigate('VisitDetails', {
-          visitId: item.id,
-          patientId: patientId,
-        })
-      }>
-      <Card.Title
-        title={`Wizyta: ${new Date(item.date).toLocaleDateString('pl-PL')}`}
-        titleStyle={{color: 'black'}}
-      />
-      <Card.Content>
-        <Text style={{color: 'black', marginBottom: 10}}>
-          🧠 Powrót do przeszłości: {item.exercises.pastMemory ? 'Tak' : 'Nie'}
-        </Text>
-        <Text style={{color: 'black', marginBottom: 10}}>
-          🔢 Arytmetyka:{' '}
-          {item.exercises.arithmetic.completed
-            ? `Tak (${item.exercises.arithmetic.time} s)`
-            : 'Nie'}
-        </Text>
-        <Text style={{color: 'black', marginBottom: 10}}>
-          📖 Czytanie na głos: {item.exercises.reading ? 'Tak' : 'Nie'}
-        </Text>
-      </Card.Content>
-    </Card>
-  );
-
   return (
     <View style={styles.container}>
       <Card elevation={0} style={styles.card}>
         <Card.Title
           title={patient.name}
-          subtitle={`Wiek: ${patient.age} | Łóżko: ${patient.bedNumber}`}
+          subtitle={`Pokój: ${patient.roomNumber} | Łóżko: ${patient.bedNumber}`}
           titleStyle={{color: 'black'}}
           subtitleStyle={{color: 'black'}}
-          left={props =>
-            PatientAvatar(props, patient.name.charAt(0), patient.gender)
-          }
+          left={props => {
+            const initial = patient.name?.charAt(0).toUpperCase() || '?';
+
+            return PatientAvatar(props, initial, patient.gender);
+          }}
         />
         <Card.Content>
-          <Text style={{color: 'black', marginBottom: 10}}>
-            ⚖️ Masa ciała: {patient.weight} kg
-          </Text>
+          {patient.age && (
+            <Text style={{color: 'black', marginBottom: 10}}>
+              🧓 Wiek: {patient.age}
+            </Text>
+          )}
           <Text style={{color: 'black'}}>👤 Płeć: {patient.gender}</Text>
         </Card.Content>
         <Card.Actions>
@@ -152,7 +214,9 @@ const PatientDetailsScreen: React.FC = () => {
         </Text>
       )}
       <FlatList
-        data={patient.visits}
+        data={patient.visits.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        )}
         keyExtractor={item => item.id}
         renderItem={renderVisitItem}
       />

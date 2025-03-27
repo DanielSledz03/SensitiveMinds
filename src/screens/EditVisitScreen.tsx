@@ -1,5 +1,5 @@
-// AddVisitScreen.tsx
-import React, {useState} from 'react';
+// EditVisitScreen.tsx
+import React, {useEffect, useState} from 'react';
 import {
   View,
   StyleSheet,
@@ -24,15 +24,20 @@ import {
   Dialog,
   Provider as PaperProvider,
   DefaultTheme,
+  ActivityIndicator,
 } from 'react-native-paper';
 import {RouteProp, useNavigation, useRoute} from '@react-navigation/native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import {useDispatch} from 'react-redux';
-import {addVisit, Visit} from '../store/slices/visitsSlice';
+
+import {Visit, updateVisit} from '../store/slices/visitsSlice';
 import {useFetch} from '../utils/MyApi';
 
 type ParamList = {
-  'Dodaj Wizytę': {patientId: string};
+  EditVisit: {
+    visitId: string;
+    patientId: string;
+  };
 };
 
 const customTheme = {
@@ -46,16 +51,27 @@ const customTheme = {
   },
 };
 
-const AddVisitScreen: React.FC = () => {
-  const route = useRoute<RouteProp<ParamList, 'Dodaj Wizytę'>>();
+const EditVisitScreen: React.FC = () => {
+  const route = useRoute<RouteProp<ParamList, 'EditVisit'>>();
   const navigation = useNavigation();
   const dispatch = useDispatch();
 
-  const {updateData} = useFetch(`/visits/${route.params.patientId}`);
+  // Hook do komunikacji z API
+  // data -> odwzorowuje aktualnie pobraną wizytę (GET robi się automatycznie w useEffect w samym hooku)
+  // loading -> czy trwa pobieranie/aktualizacja
+  // error -> komunikat błędu, jeśli coś poszło nie tak
+  // updateData -> metoda do wywołania PUT/POST/DELETE/PATCH
+  const {
+    data: existingVisit,
+    loading,
+    error,
+    updateData,
+  } = useFetch<Visit>(`/visits/${route.params.visitId}`);
 
   // Stany formularza
   const [date, setDate] = useState(new Date());
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
+
   const [consentGiven, setConsentGiven] = useState(false);
   const [pastMemory, setPastMemory] = useState(false);
   const [arithmetic, setArithmetic] = useState(false);
@@ -73,11 +89,49 @@ const AddVisitScreen: React.FC = () => {
     stroopErrors: false,
   });
 
-  // Stan zapisywania
+  // Stan zapisywania/aktualizacji
   const [isSaving, setIsSaving] = useState(false);
 
   // Stan dialogu potwierdzającego brak ćwiczeń
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
+  // Gdy tylko pobierzemy wizytę (existingVisit), ustawiamy odpowiednio stany formularza
+  useEffect(() => {
+    if (existingVisit) {
+      // Data wizyty
+      setDate(new Date(existingVisit.date)); // Zakładam, że existingVisit.date to string w formacie YYYY-MM-DD
+
+      // Zgoda
+      setConsentGiven(!!existingVisit.consentGiven);
+
+      // Ćwiczenia
+      if (existingVisit.exercises) {
+        setPastMemory(!!existingVisit.exercises.pastMemory);
+
+        if (existingVisit.exercises.arithmetic) {
+          setArithmetic(!!existingVisit.exercises.arithmetic.completed);
+          setArithmeticTime(
+            existingVisit.exercises.arithmetic.time?.toString() || '0',
+          );
+        }
+
+        setReading(!!existingVisit.exercises.reading);
+
+        if (existingVisit.exercises.stroopTest) {
+          setStroopTest(!!existingVisit.exercises.stroopTest.completed);
+          setStroopTime(
+            existingVisit.exercises.stroopTest.time?.toString() || '0',
+          );
+          setStroopErrors(
+            existingVisit.exercises.stroopTest.errors?.toString() || '0',
+          );
+        }
+      }
+
+      // Notatki
+      setNotes(existingVisit.notes || '');
+    }
+  }, [existingVisit]);
 
   // Funkcja walidująca formularz
   const validateForm = () => {
@@ -90,12 +144,12 @@ const AddVisitScreen: React.FC = () => {
       stroopErrors:
         stroopTest && (isNaN(Number(stroopErrors)) || Number(stroopErrors) < 0),
     };
-
     setErrors(newErrors);
-    return !Object.values(newErrors).some(error => error);
+    return !Object.values(newErrors).some(Boolean);
   };
 
-  const saveVisit = () => {
+  // Przycisk "Zapisz zmiany"
+  const handleSave = () => {
     if (!validateForm()) {
       Alert.alert('Błąd', 'Proszę poprawić błędy formularza przed zapisaniem.');
       return;
@@ -109,13 +163,15 @@ const AddVisitScreen: React.FC = () => {
       return;
     }
 
-    submitVisit();
+    // Jeśli wszystko ok, zapisujemy
+    submitEdit();
   };
 
-  const submitVisit = async () => {
-    const newVisit: Visit = {
-      id: Math.random().toString(36).substring(7),
-      patientId: route.params.patientId,
+  const submitEdit = async () => {
+    // Przygotowujemy obiekt wizyty do aktualizacji
+    const updatedVisit: Visit = {
+      id: route.params.visitId, // wykorzystujemy ID z nawigacji
+      patientId: route.params.patientId, // jeśli jest potrzebne
       date: date.toISOString().split('T')[0],
       consentGiven,
       exercises: {
@@ -137,27 +193,44 @@ const AddVisitScreen: React.FC = () => {
     };
 
     setIsSaving(true);
-    try {
-      await updateData('POST', newVisit);
-      dispatch(addVisit(newVisit));
 
-      setIsSaving(false);
-      Alert.alert('Sukces', 'Wizyta została zapisana.', [
+    // Wywołujemy updateData z metodą PUT
+    await updateData('PATCH', updatedVisit);
+
+    // Po wywołaniu updateData:
+    setIsSaving(false);
+
+    if (!error) {
+      // Jeżeli w hooku nie ustawiono błędu, zakładamy, że aktualizacja się udała
+      dispatch(updateVisit(updatedVisit));
+      Alert.alert('Sukces', 'Wizyta została zaktualizowana.', [
         {text: 'OK', onPress: () => navigation.goBack()},
       ]);
-    } catch (error) {
-      setIsSaving(false);
-      Alert.alert('Błąd', 'Nie udało się zapisać wizyty.');
+    } else {
+      // Jeżeli error został ustawiony w hooku
+      Alert.alert('Błąd', error);
     }
   };
 
   // Obsługa DatePicker
   const showDatePicker = () => setIsDatePickerVisible(true);
   const hideDatePicker = () => setIsDatePickerVisible(false);
-  const handleConfirm = (selectedDate: Date) => {
+
+  const handleConfirmDate = (selectedDate: Date) => {
     setDate(selectedDate);
     hideDatePicker();
   };
+
+  if (loading) {
+    return (
+      <PaperProvider theme={customTheme}>
+        <SafeAreaView style={[styles.safeArea, styles.centerContent]}>
+          <ActivityIndicator animating size="large" />
+          <Text style={{marginTop: 16}}>Ładowanie danych wizyty...</Text>
+        </SafeAreaView>
+      </PaperProvider>
+    );
+  }
 
   return (
     <PaperProvider theme={customTheme}>
@@ -173,7 +246,10 @@ const AddVisitScreen: React.FC = () => {
               <Card style={styles.card}>
                 <Card.Content>
                   <View style={styles.headerSection}>
-                    <Text style={styles.screenTitle}>Dodaj nową wizytę</Text>
+                    <Text style={styles.screenTitle}>Edytuj wizytę</Text>
+                    <Text style={styles.patientId}>
+                      ID wizyty: {route.params.visitId}
+                    </Text>
                     <Text style={styles.patientId}>
                       ID pacjenta: {route.params.patientId}
                     </Text>
@@ -194,7 +270,7 @@ const AddVisitScreen: React.FC = () => {
                     isVisible={isDatePickerVisible}
                     mode="date"
                     date={date}
-                    onConfirm={handleConfirm}
+                    onConfirm={handleConfirmDate}
                     onCancel={hideDatePicker}
                   />
 
@@ -228,12 +304,13 @@ const AddVisitScreen: React.FC = () => {
                       status={arithmetic ? 'checked' : 'unchecked'}
                       onPress={() => {
                         setArithmetic(!arithmetic);
-                        if (!arithmetic) setArithmeticTime('0');
+                        if (!arithmetic) {
+                          setArithmeticTime('0');
+                        }
                       }}
                       disabled={!consentGiven}
                       style={styles.checkboxItem}
                     />
-
                     {arithmetic && (
                       <View style={styles.indentedInput}>
                         <TextInput
@@ -274,7 +351,6 @@ const AddVisitScreen: React.FC = () => {
                       disabled={!consentGiven}
                       style={styles.checkboxItem}
                     />
-
                     {stroopTest && (
                       <View style={styles.indentedInput}>
                         <TextInput
@@ -327,11 +403,11 @@ const AddVisitScreen: React.FC = () => {
 
               <Button
                 mode="contained"
-                onPress={saveVisit}
-                loading={isSaving}
-                disabled={isSaving}
+                onPress={handleSave}
+                loading={isSaving || loading} // można też zablokować przycisk, gdy trwa pobieranie
+                disabled={isSaving || loading}
                 style={styles.saveButton}>
-                Zapisz wizytę
+                Zapisz zmiany
               </Button>
             </ScrollView>
           </TouchableWithoutFeedback>
@@ -353,7 +429,7 @@ const AddVisitScreen: React.FC = () => {
               <Button onPress={() => setShowConfirmDialog(false)}>
                 Anuluj
               </Button>
-              <Button onPress={submitVisit}>Zapisz mimo to</Button>
+              <Button onPress={submitEdit}>Zapisz mimo to</Button>
             </Dialog.Actions>
           </Dialog>
         </Portal>
@@ -366,6 +442,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   container: {
     flexGrow: 1,
@@ -434,4 +515,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AddVisitScreen;
+export default EditVisitScreen;

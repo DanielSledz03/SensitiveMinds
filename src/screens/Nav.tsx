@@ -8,11 +8,13 @@ import VisitDetailsScreen from './VisitDetailsScreen';
 import LoginScreen from './Login';
 import {useDispatch, useSelector} from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {setToken} from '../store/slices/authSlice';
-import {ActivityIndicator} from 'react-native-paper';
+import {resetToken, setToken} from '../store/slices/authSlice';
+import {ActivityIndicator, Text} from 'react-native-paper';
 import {RootState} from '../store/store';
 import {jwtDecode, JwtPayload} from 'jwt-decode';
 import AddPatientScreen from './AddPatientScreen';
+import {Alert, TouchableOpacity} from 'react-native';
+import EditVisitScreen from './EditVisitScreen';
 
 export type RootStackParamList = {
   Pacjenci: undefined;
@@ -21,19 +23,46 @@ export type RootStackParamList = {
   AddVisit: {patientId: string};
   VisitDetails: {visitId: string; patientId: string};
   AddPatient: undefined;
+  EditVisit: {visitId: string; patientId: string};
 };
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
-const AppStackNavigator = () => (
-  <AppStack.Navigator screenOptions={{headerTitle: 'SensitiveMinds'}}>
-    <AppStack.Screen name="Pacjenci" component={Patients} />
-    <AppStack.Screen name="PatientDetails" component={PatientDetailsScreen} />
-    <AppStack.Screen name="EditPatient" component={EditPatientScreen} />
-    <AppStack.Screen name="AddVisit" component={AddVisitScreen} />
-    <AppStack.Screen name="VisitDetails" component={VisitDetailsScreen} />
-    <AppStack.Screen name="AddPatient" component={AddPatientScreen} />
-  </AppStack.Navigator>
-);
+const AppStackNavigator = () => {
+  const dispatch = useDispatch();
+  const handleLogout = () => {
+    Alert.alert('Wylogowanie', 'Czy na pewno chcesz się wylogować?', [
+      {text: 'Anuluj', style: 'cancel'},
+      {
+        text: 'Wyloguj',
+        onPress: () => {
+          dispatch(resetToken());
+          AsyncStorage.clear();
+        },
+      },
+    ]);
+  };
+
+  return (
+    <AppStack.Navigator
+      screenOptions={{
+        headerTitle: 'SensitiveMinds',
+        headerBackTitle: 'Wróć',
+        headerRight: () => (
+          <TouchableOpacity onPress={handleLogout} style={{marginRight: 15}}>
+            <Text style={{color: 'black', fontSize: 16}}>Wyloguj</Text>
+          </TouchableOpacity>
+        ),
+      }}>
+      <AppStack.Screen name="Pacjenci" component={Patients} />
+      <AppStack.Screen name="PatientDetails" component={PatientDetailsScreen} />
+      <AppStack.Screen name="EditPatient" component={EditPatientScreen} />
+      <AppStack.Screen name="AddVisit" component={AddVisitScreen} />
+      <AppStack.Screen name="VisitDetails" component={VisitDetailsScreen} />
+      <AppStack.Screen name="AddPatient" component={AddPatientScreen} />
+      <AppStack.Screen name="EditVisit" component={EditVisitScreen} />
+    </AppStack.Navigator>
+  );
+};
 
 type AuthStackParamList = {
   Login: undefined;

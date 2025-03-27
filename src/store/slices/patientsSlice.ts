@@ -6,7 +6,11 @@ export interface Patient {
   age: number;
   bedNumber: string;
   gender: 'Mężczyzna' | 'Kobieta';
-  weight: number;
+  roomNumber: string;
+  center: {
+    id: number;
+    name: string;
+  };
   user?: {id: string};
 }
 
