@@ -9,6 +9,11 @@ SensitiveMinds is a dedicated application created for the needs of a research pr
 
 The application was designed as a tool for internal use among project participants. Although it is publicly available on Google Play, its functionality is limited exclusively to logged-in users. Accounts in the application can only be held by persons participating in the project, which ensures complete security and confidentiality of collected data.
 
+## 📱 Download
+
+- **Google Play**: [SensitiveMinds](https://play.google.com/store/apps/details?id=com.danielsledz.sensitiveminds)
+- **App Store**: [SensitiveMinds](https://apps.apple.com/pl/app/sensitiveminds/id6743448928)
+
 ## 🌟 Features
 
 - **Cross-Platform**: Native performance on both iOS and Android
