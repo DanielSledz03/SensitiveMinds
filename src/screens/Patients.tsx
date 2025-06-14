@@ -1,13 +1,13 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {View, FlatList, StyleSheet, RefreshControl} from 'react-native';
 import {
-  Searchbar,
   Card,
   Avatar,
   FAB,
   List,
   PaperProvider,
   ActivityIndicator,
+  Button,
 } from 'react-native-paper';
 import {Text} from '@rneui/base';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
@@ -21,9 +21,16 @@ import {RootStackParamList} from './Nav';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 const Patients: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  // Stan pacjentów pobieranych z Redux
   const patients = useSelector((state: RootState) => state.patients.patients);
   const [firstFetch, setFirstFetch] = useState(false);
+
+  // Stany sortowania:
+  // sortRoomAsc – czy sortowanie numeru pokoju ma być rosnące
+  // sortBedAsc – czy sortowanie numeru łóżka ma być rosnące
+  const [sortRoomAsc, setSortRoomAsc] = useState(true);
+  const [sortBedAsc, setSortBedAsc] = useState(true);
+
   // Pobieranie pacjentów z API
   const {data, error, refetch, loading} = useFetch<any[]>('/patients');
   const dispatch = useDispatch();
@@ -31,7 +38,7 @@ const Patients: React.FC = () => {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  // Odświeżenie danych po powrocie na ten ekran
+  // Odświeżenie danych przy powrocie na ekran
   useFocusEffect(
     useCallback(() => {
       refetch();
@@ -50,51 +57,42 @@ const Patients: React.FC = () => {
     }
   }, [data, dispatch, patients]);
 
-  // Filtrowanie pacjentów po wpisanej frazie
-  const filteredPatients = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return patients;
-    }
-    return patients.filter(patient =>
-      (patient.name || '').toLowerCase().includes(searchQuery.toLowerCase()),
-    );
-  }, [patients, searchQuery]);
-
+  // Grupowanie pacjentów po ośrodku i sortowanie wewnątrz grupy
+  // Sortujemy najpierw po numerze pokoju, a przy równych pokojach – po numerze łóżka.
   const groupedPatients = useMemo(() => {
     const grouped: Record<string, Patient[]> = {};
 
-    filteredPatients.forEach(patient => {
-      const centerId = patient.center?.id || 'unknown-center';
+    patients.forEach(patient => {
+      const centerId = patient.center?.id
+        ? patient.center.id.toString()
+        : 'unknown-center';
       if (!grouped[centerId]) {
         grouped[centerId] = [];
       }
       grouped[centerId].push(patient);
     });
 
-    // Sortowanie pacjentów w każdej grupie
     Object.keys(grouped).forEach(centerId => {
       grouped[centerId].sort((a, b) => {
-        const nameA = a.name?.trim().toLowerCase();
-        const nameB = b.name?.trim().toLowerCase();
-
-        const isAnonA = !nameA;
-        const isAnonB = !nameB;
-
-        if (isAnonA && !isAnonB) return 1;
-        if (!isAnonA && isAnonB) return -1;
-        if (isAnonA && isAnonB) return 0;
-
-        return nameA!.localeCompare(nameB!);
+        // Porównanie numerów pokoju (zakładamy, że roomNumber jest liczbą zapisaną jako string)
+        const roomA = parseInt(a.roomNumber, 10);
+        const roomB = parseInt(b.roomNumber, 10);
+        if (roomA !== roomB) {
+          return sortRoomAsc ? roomA - roomB : roomB - roomA;
+        }
+        // Jeśli pokoje są takie same, porównujemy numery łóżek
+        const bedA = parseInt(a.bedNumber, 10);
+        const bedB = parseInt(b.bedNumber, 10);
+        return sortBedAsc ? bedA - bedB : bedB - bedA;
       });
     });
 
     return grouped;
-  }, [filteredPatients]);
+  }, [patients, sortRoomAsc, sortBedAsc]);
 
-  // Wyciągnięcie listy kluczy (ID ośrodków) do wyświetlenia w FlatList
   const centerIds = Object.keys(groupedPatients);
 
-  // Render listy ośrodków wraz z pacjentami
+  // Funkcja renderująca listę ośrodków z pacjentami
   const renderCentersWithPatients = () => {
     return (
       <FlatList
@@ -115,16 +113,10 @@ const Patients: React.FC = () => {
                 titleStyle={{color: 'black'}}
                 style={styles.accordion}>
                 {groupedPatients[centerId].map((patient: Patient, index) => {
-                  // Obsługa braku imienia
                   const displayName = patient.name?.trim()
                     ? patient.name
                     : 'Pacjent anonimowy';
-                  // Obsługa wyświetlania wieku (jeżeli istnieje)
-
-                  // Podtytuł z uwzględnieniem pokoju, łóżka i ewentualnego wieku
                   const subtitleText = `Pokój: ${patient.roomNumber} | Łóżko: ${patient.bedNumber}`;
-
-                  // Początkowa litera do Avatara
                   const initial = patient.name?.charAt(0).toUpperCase() || '?';
 
                   return (
@@ -186,15 +178,21 @@ const Patients: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Searchbar
-        placeholder="Szukaj pacjenta..."
-        onChangeText={setSearchQuery}
-        value={searchQuery}
-        style={styles.searchbar}
-        placeholderTextColor="gray"
-        rippleColor="black"
-        selectionColor="black"
-      />
+      {/* Przyciski sortowania */}
+      <View style={styles.sortButtonsContainer}>
+        <Button
+          mode="contained"
+          onPress={() => setSortRoomAsc(prev => !prev)}
+          style={styles.sortButton}>
+          Sortuj po pokoju
+        </Button>
+        <Button
+          mode="contained"
+          onPress={() => setSortBedAsc(prev => !prev)}
+          style={styles.sortButton}>
+          Sortuj po łóżku
+        </Button>
+      </View>
 
       {error && <Text style={{marginVertical: 8}}>Błąd: {error}</Text>}
 
@@ -218,10 +216,14 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#F5F5F5',
   },
-  searchbar: {
+  sortButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 10,
-    backgroundColor: 'white',
-    color: 'black',
+  },
+  sortButton: {
+    flex: 1,
+    marginHorizontal: 5,
   },
   accordion: {
     backgroundColor: 'white',

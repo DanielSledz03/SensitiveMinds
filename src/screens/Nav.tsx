@@ -45,7 +45,7 @@ const AppStackNavigator = () => {
   return (
     <AppStack.Navigator
       screenOptions={{
-        headerTitle: 'SensitiveMinds',
+        headerTitle: 'SensitiveMinds 1.0.5',
         headerBackTitle: 'Wróć',
         headerRight: () => (
           <TouchableOpacity onPress={handleLogout} style={{marginRight: 15}}>
