@@ -1,97 +1,232 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# SensitiveMinds 🧠
 
-# Getting Started
+[![React Native](https://img.shields.io/badge/React_Native-0.78.0-61DAFB?style=for-the-badge&logo=react)](https://reactnative.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0.4-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Redux Toolkit](https://img.shields.io/badge/Redux_Toolkit-2.6.0-764ABC?style=for-the-badge&logo=redux)](https://redux-toolkit.js.org/)
+[![React Navigation](https://img.shields.io/badge/React_Navigation-7.0.14-FF6B6B?style=for-the-badge&logo=react-navigation)](https://reactnavigation.org/)
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+SensitiveMinds is a dedicated application created for the needs of a research project conducted by psychology students. Its purpose is to streamline the process of collecting data about patients and conducted visits.
 
-## Step 1: Start Metro
+The application was designed as a tool for internal use among project participants. Although it is publicly available on Google Play, its functionality is limited exclusively to logged-in users. Accounts in the application can only be held by persons participating in the project, which ensures complete security and confidentiality of collected data.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## 🌟 Features
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- **Cross-Platform**: Native performance on both iOS and Android
+- **Modern Architecture**: Built with React Native 0.78.0 and TypeScript
+- **State Management**: Redux Toolkit for predictable state management
+- **Authentication**: JWT-based authentication with automatic token refresh
+- **Patient Management**: Complete patient tracking and management system
+- **Visit Management**: Therapeutic visit management system
+- **Therapeutic Exercises**: Cognitive exercise progress tracking
+- **Center Grouping**: Organization of patients by therapeutic centers
+- **Sorting**: Advanced patient sorting options
 
-```sh
-# Using npm
-npm start
+## 📱 Application Functions
 
-# OR using Yarn
-yarn start
+- **Patient Information Registration**: Recording comprehensive patient data
+- **Weekly Visit Monitoring**: Tracking and managing therapeutic sessions
+- **Secure Data Storage**: Privacy-compliant data protection
+- **Intuitive Interface**: Simple and user-friendly design for easy data entry
+
+SensitiveMinds is a modern tool supporting the data analysis and monitoring process, providing convenience and security for users.
+
+> **ℹ️ Note**: The application is not intended for general use. Only persons with accounts assigned to the project have login capabilities.
+
+## 🛠️ Tech Stack
+
+- **Framework**: React Native 0.78.0
+- **Language**: TypeScript 5.0.4
+- **State Management**: Redux Toolkit 2.6.0, React Redux 9.2.0
+- **Navigation**: React Navigation 7.0.14, Native Stack 7.2.0, Bottom Tabs 7.2.1
+- **Storage**: AsyncStorage 2.1.2
+- **UI Components**: React Native Paper 5.13.1, React Native Elements 0.0.0-edge.2
+- **Forms**: React Native Picker 2.11.0, DateTimePicker 8.3.0
+- **HTTP Client**: Axios 1.8.1
+- **Authentication**: JWT Decode 4.0.0
+- **Testing**: Jest 29.6.3, React Test Renderer 19.0.0
+- **Linting**: ESLint 8.19.0 with React Native config
+- **Formatting**: Prettier 2.8.8
+
+## 📁 Project Structure
+
+```
+├── src/                    # Source code
+│   ├── config/            # Application configuration
+│   │   └── api.ts         # API configuration
+│   ├── screens/           # Application screens
+│   │   ├── Login.tsx      # Login screen
+│   │   ├── Nav.tsx        # Navigation configuration
+│   │   ├── Patients.tsx   # Patient list
+│   │   ├── PatientDetails.tsx # Patient details
+│   │   ├── AddPatientScreen.tsx # Add patient
+│   │   ├── EditPatient.tsx # Edit patient
+│   │   ├── AddVisitScreen.tsx # Add visit
+│   │   ├── EditVisitScreen.tsx # Edit visit
+│   │   └── VisitDetailsScreen.tsx # Visit details
+│   ├── store/             # Redux store configuration
+│   │   ├── store.ts       # Main store configuration
+│   │   └── slices/        # Redux slices
+│   │       ├── authSlice.ts # Authentication state
+│   │       ├── patientsSlice.ts # Patient state
+│   │       └── visitsSlice.ts # Visit state
+│   ├── types/             # TypeScript type definitions
+│   └── utils/             # Utility functions
+│       └── MyApi.ts       # Hook for API data fetching
+├── android/               # Android-specific configuration
+├── ios/                   # iOS-specific configuration
+├── __tests__/             # Test files
+└── public/                # Public assets
 ```
 
-## Step 2: Build and run your app
+## 🚀 Getting Started
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+### Prerequisites
 
-### Android
+- Node.js >= 18
+- React Native CLI
+- Android Studio (for Android development)
+- Xcode (for iOS development, macOS only)
 
-```sh
-# Using npm
-npm run android
+### Installation
 
-# OR using Yarn
-yarn android
+1. **Clone the repository**
+
+   ```bash
+   git clone <repository-url>
+   cd SensitiveMinds
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **For iOS, install CocoaPods**
+
+   ```bash
+   cd ios && pod install && cd ..
+   ```
+
+## 🔧 Configuration
+
+### API Configuration
+
+The API URL is configured in the `src/config/api.ts` file. You can change it according to your needs:
+
+```typescript
+export const API_CONFIG = {
+  BASE_URL: 'https://your-backend-url.com',
+  TIMEOUT: 10000,
+  RETRY_ATTEMPTS: 3,
+};
 ```
 
-### iOS
+### Android Configuration
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+#### App Signing (only for release builds)
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+1. Generate a new signing key:
 
-```sh
-bundle install
+   ```bash
+   keytool -genkey -v -keystore android/app/my-release-key.keystore -alias my-key-alias -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. Set passwords in environment variables or in the `android/gradle.properties` file:
+
+   ```properties
+   MYAPP_RELEASE_STORE_PASSWORD=your_store_password
+   MYAPP_RELEASE_KEY_PASSWORD=your_key_password
+   ```
+
+**IMPORTANT**: Never commit actual passwords to the repository!
+
+## 📝 Available Scripts
+
+- `npm start` - Start React Native development server
+- `npm run android` - Run application on Android device/emulator
+- `npm run ios` - Run application on iOS device/simulator
+- `npm test` - Run Jest tests
+- `npm run lint` - Run ESLint for code quality
+
+## 🎨 Styling
+
+The application uses React Native Paper for UI components. Custom styles can be added in:
+
+- Individual component files
+- Shared style constants in `src/constants/`
+- Theme configuration for consistent design
+
+## 📱 Application Features
+
+### Patient Management
+
+- Display patient list grouped by centers
+- Add new patients
+- Edit patient data
+- Detailed patient information
+- Sort by room and bed number
+
+### Visit Management
+
+- Add new therapeutic visits
+- Edit existing visits
+- Track cognitive exercises:
+  - Memory exercises
+  - Arithmetic exercises
+  - Reading exercises
+  - Stroop Test
+- Visit notes
+
+### Authentication
+
+- Secure JWT login
+- Automatic token refresh
+- Logout with confirmation
+
+## 🔧 Development
+
+### Code Quality
+
+The project uses ESLint and Prettier for code quality and formatting:
+
+```bash
+# Check for linting errors
+npm run lint
+
+# Auto-fix linting issues
+npx eslint . --fix
 ```
 
-Then, and every time you update your native dependencies, run:
+### Testing
 
-```sh
-bundle exec pod install
+Run tests using Jest:
+
+```bash
+npm test
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## 🔒 Security
 
-```sh
-# Using npm
-npm run ios
+- All sensitive data (passwords, keys) have been removed from the repository
+- Use environment variables for production configuration
+- Never commit `.keystore` files or passwords
 
-# OR using Yarn
-yarn ios
-```
+## 📄 License
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+This project is private and proprietary. All rights reserved.
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## 📞 Contact
 
-## Step 3: Modify your app
+**SensitiveMinds**
 
-Now that you have successfully run the app, let's make changes!
+- Author: Daniel Śledź
+- Frontend Repository: [SensitiveMinds](https://github.com/DanielSledz03/SensitiveMinds)
+- Backend Repository: [SensitiveMinds Backend](https://github.com/DanielSledz03/SensitiveMinds-Backend)
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+---
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+<div align="center">
+  <p>Built with ❤️ for efficient therapy management</p>
+  <p>Modern mobile solutions for modern healthcare</p>
+</div>
