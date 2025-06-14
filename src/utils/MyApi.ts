@@ -2,8 +2,9 @@ import {useState, useEffect, useCallback} from 'react';
 import axios from 'axios';
 import {useSelector} from 'react-redux';
 import {RootState} from '../store/store';
-export const API_URL =
-  'https://sensitiveminds-backend-production.up.railway.app';
+import {getApiUrl} from '../config/api';
+
+export const API_URL = getApiUrl();
 
 interface FetchResult<T> {
   data: T | null;
